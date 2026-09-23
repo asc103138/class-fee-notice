@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>四上班費收費通知與套印系統</title>
+  <style>
+    :root {
+      --primary: #1F497D;
+      --accent-red: #C00000;
+      --highlight: #FFFF00;
+      --bg: #F4F6F9;
+    }
+    * {
+      box-sizing: border-box;
+      font-family: "標楷體", "BiauKai", "DFKai-SB", "TW-Kai", -apple-system, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg);
+      color: #333;
+    }
+    
+    /* 螢幕顯示樣式 (列印時隱藏) */
+    @media screen {
+      .header-bar {
+        background: linear-gradient(135deg, #1F497D 0%, #2A6496 100%);
+        color: white;
+        padding: 30px 20px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+      .header-bar h1 {
+        margin: 0 0 10px 0;
+        font-size: 28px;
+        letter-spacing: 1px;
+      }
+      .header-bar p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 15px;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 25px auto;
+        padding: 0 15px;
+      }
+      .card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      }
+      .fee-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+      }
+      .fee-box {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+      }
+      .fee-box .amount {
+        font-size: 24px;
+        font-weight: bold;
+        color: var(--primary);
+        margin: 6px 0 2px 0;
+      }
+      .fee-box.total {
+        background: #FFFBEB;
+        border-color: #FCD34D;
+      }
+      .fee-box.total .amount {
+        color: #B45309;
+        font-size: 28px;
+      }
+      .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 15px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px;
+        font-size: 15px;
+        font-weight: bold;
+        text-decoration: none;
+        border-radius: 8px;
+        cursor: pointer;
+        border: none;
+        transition: transform 0.15s, box-shadow 0.15s;
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      }
+      .btn-primary { background: #2563EB; color: white; }
+      .btn-pdf { background: #DC2626; color: white; }
+      .btn-word { background: #2B579A; color: white; }
+      .btn-excel { background: #107C41; color: white; }
+      .preview-title {
+        font-size: 18px;
+        font-weight: bold;
+        color: #334155;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .preview-wrapper {
+        background: #CBD5E1;
+        padding: 20px;
+        border-radius: 8px;
+        overflow-x: auto;
+      }
+    }
+
+    /* 列印與預覽共通排版 */
+    .print-page {
+      width: 287mm;
+      height: 198mm;
+      background: white;
+      margin: 0 auto 20px auto;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 3mm;
+      page-break-after: always;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .print-page:last-child {
+      page-break-after: auto;
+    }
+    .slip {
+      border: 1px dashed #888;
+      padding: 2.2mm 3.2mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #fff;
+      height: 96mm;
+    }
+    .title {
+      text-align: center;
+      color: var(--accent-red);
+      font-size: 13.5pt;
+      font-weight: bold;
+      margin: 0 0 1mm 0;
+      letter-spacing: 0.5px;
+    }
+    .student-info {
+      text-align: center;
+      font-size: 9pt;
+      font-weight: bold;
+      margin-bottom: 1.5mm;
+    }
+    .items {
+      font-size: 9pt;
+      line-height: 1.25;
+      margin-left: 2mm;
+    }
+    .total-highlight {
+      font-size: 9.5pt;
+      font-weight: bold;
+      margin: 1mm 0 1.5mm 2mm;
+      display: inline-block;
+      background-color: var(--highlight);
+      padding: 0.5px 3px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    table.slip-table {
+      width: 96%;
+      margin: 0 auto 1.2mm auto;
+      border-collapse: collapse;
+      font-size: 8pt;
+    }
+    table.slip-table th, table.slip-table td {
+      border: 1px solid #000;
+      padding: 2px 4px;
+      text-align: center;
+    }
+    table.slip-table th {
+      font-weight: bold;
+    }
+    table.slip-table td.name {
+      text-align: left;
+      padding-left: 6px;
+    }
+    .footer-note {
+      font-size: 8pt;
+      margin: 1mm 0 1mm 2mm;
+      line-height: 1.2;
+    }
+    .boxed-text {
+      border: 1px solid #000;
+      padding: 0 2px;
+      font-weight: bold;
+    }
+    .signature {
+      font-size: 9pt;
+      font-weight: bold;
+      margin: 1mm 0 0.5mm 2mm;
+    }
+
+    /* 列印特定設定 (A4 橫向) */
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 5mm;
+      }
+      body {
+        background: white;
+      }
+      .header-bar, .card, .btn-group {
+        display: none !important;
+      }
+      .preview-wrapper {
+        background: transparent !important;
+        padding: 0 !important;
+      }
+      .print-page {
+        margin: 0 !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-bar">
+    <h1>四上班費收費通知與套印系統</h1>
+    <p>A4 橫式一頁 6 張 ｜ 全班 28 人共 5 頁（含備用單） ｜ 每人收費 300 元</p>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h2 style="margin-top: 0; font-size: 20px;">💰 本學期收費明細統計</h2>
+      <div class="fee-summary">
+        <div class="fee-box">
+          <div style="font-size: 13px; color: #64748B;">① 運動會道具</div>
+          <div class="amount">$50</div>
+        </div>
+        <div class="fee-box">
+          <div style="font-size: 13px; color: #64748B;">② 影印及雜支</div>
+          <div class="amount">$112</div>
+          <div style="font-size: 11px; color: #94A3B8;">已扣抵自然練習簿</div>
+        </div>
+        <div class="fee-box">
+          <div style="font-size: 13px; color: #64748B;">③ 學用品小計</div>
+          <div class="amount">$138</div>
+          <div style="font-size: 11px; color: #94A3B8;">寒假28 + 國練50 + 自然60</div>
+        </div>
+        <div class="fee-box total">
+          <div style="font-size: 13px; font-weight: bold; color: #92400E;">本學期現金收費合計</div>
+          <div class="amount">$300</div>
+        </div>
+      </div>
+
+      <h3 style="font-size: 16px; margin: 25px 0 10px 0;">⚡ 快速操作與下載專區</h3>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="window.print()">
+          🖨️ 直接列印全班通知單（A4 橫式 5 頁）
+        </button>
+        <a class="btn btn-pdf" href="./班費收費通知_四上全班28人_橫式一頁6張.pdf" download>
+          📥 下載 PDF 直接列印檔
+        </a>
+        <a class="btn btn-word" href="./班費收費通知_四上全班28人_橫式一頁6張.docx" download>
+          📝 下載 Word 橫式 6 張版 (.docx)
+        </a>
+        <a class="btn btn-excel" href="./學生名冊與收費核對表_四上班費.xlsx" download>
+          📊 下載 Excel 收費核對名冊 (.xlsx)
+        </a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="preview-title">
+        <span>📄 排版預覽（全班 28 人，5 頁完整內容）</span>
+        <span style="font-size: 13px; color: #64748B; font-weight: normal;">裁切線清晰 ｜ 大小契合信封／收費袋</span>
+      </div>
+      <div class="preview-wrapper" id="preview-container">
+        <!-- 由 JavaScript 自動產生 5 頁（28 人 + 2 備用單） -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const totalStudents = 28;
+    const perPage = 6;
+    const totalPages = 5;
+    const container = document.getElementById("preview-container");
+
+    for (let p = 0; p < totalPages; p++) {
+      const pageDiv = document.createElement("div");
+      pageDiv.className = "print-page";
+
+      for (let c = 0; c < perPage; c++) {
+        const idx = p * perPage + c;
+        const seatNum = idx + 1;
+        const seatStr = seatNum <= totalStudents ? `${String(seatNum).padStart(2, '0')} 號` : `____ 號`;
+
+        pageDiv.innerHTML += `
+          <div class="slip">
+            <div>
+              <div class="title">四上預定收費項目</div>
+              <div class="student-info">四年____班 &nbsp; 座號：${seatStr} &nbsp; 姓名：___________</div>
+              <div class="items">
+                ① 運動會道具：50 元<br>
+                ② 影印及雜支：112 元<br>
+                ③ 學用品：138 元(明細如下)
+              </div>
+              <div>
+                <span class="total-highlight">本學期現金收費合計：300 元</span>
+              </div>
+              <table class="slip-table">
+                <tr>
+                  <th style="width: 44%;">學用品名稱</th>
+                  <th style="width: 18%;">單價</th>
+                  <th style="width: 18%;">數量</th>
+                  <th style="width: 20%;">價格</th>
+                </tr>
+                <tr>
+                  <td class="name">寒假作業</td>
+                  <td>28</td>
+                  <td>1</td>
+                  <td>28</td>
+                </tr>
+                <tr>
+                  <td class="name">國語隨堂練習</td>
+                  <td>50</td>
+                  <td>1</td>
+                  <td>50</td>
+                </tr>
+                <tr>
+                  <td class="name">自然練習簿</td>
+                  <td>60</td>
+                  <td>1</td>
+                  <td>60</td>
+                </tr>
+              </table>
+            </div>
+            <div>
+              <div class="footer-note">
+                發下 <span class="boxed-text">現金收費袋</span> ，請於本週內交給老師。謝謝！
+              </div>
+              <div class="signature">
+                家長簽名 【　　　　　　　】
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      container.appendChild(pageDiv);
+    }
+  </script>
+</body>
+</html>
