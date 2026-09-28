@@ -3,7 +3,7 @@
 ## 專案資訊
 - 專案名稱：四上班費收費通知單與套印系統
 - 專案用途：國小四年級上學期班費收費通知單排版、全班 28 人批次套印（A4 橫式一頁 6 張、直式 4 合 1）、收費名冊核對與學生姓名自動帶入工具。
-- 主要工作目錄：`/Users/tunyuan/anti/班費`
+- 主要工作目錄：`/Users/tunyuan/anti/115四上班費`
 - GitHub Repo：`https://github.com/asc103138/class-fee-notice` (Public)
 - 線上網站 (Pages)：`https://asc103138.github.io/class-fee-notice/`
 - 關鍵規格：
