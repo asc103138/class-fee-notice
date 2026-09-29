@@ -1,7 +1,19 @@
-# macOS
+# macOS system files
 .DS_Store
 .AppleDouble
 .LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows system files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+Desktop.ini
 
 # Office temporary files
 ~$*.docx
@@ -24,3 +36,4 @@ venv/
 班級名條*.xlsx
 *四年丙班*
 *含姓名*
+preview_*.png

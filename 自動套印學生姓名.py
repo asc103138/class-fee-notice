@@ -1,24 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-班費收費通知 - 全班學生姓名自動套印與 PDF 匯出工具
-支援：
+班費收費通知 - 全班學生姓名自動套印與 PDF 匯出工具（跨平台相容版）
+相容環境：macOS (Apple Silicon / Intel) 與 Windows 11 / 10
+
+支援功能：
 1. 自動讀取「班級名條.xlsx」之班級代號與學生名冊（或回退讀取核對表）
 2. 精確套印姓名與座號至「A4 橫式一頁 6 張」及「A4 直式一頁 4 張」版面
-3. 產生與更新「學生名冊與收費核對表_四年丙班.xlsx」
-4. 自動調用 Word 引擎匯出 100% 零跑版之高畫質 PDF 套印檔
+3. 產生與更新「學生名冊與收費核對表_{班級}.xlsx」
+4. 跨平台無損 PDF 匯出：
+   - Windows：調用本機 Word COM 自動化（< 3 秒原生無損）
+   - macOS：調用 AppleScript 控制 Word for Mac（或回退 LibreOffice）
 """
 
 import os
 import sys
 import io
+import shutil
 import subprocess
 import openpyxl
 import docx
 
-# Ensure UTF-8 output on Windows
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+# Windows 終端強制 UTF-8 輸出，防止 CP950 編碼報錯
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -123,32 +129,75 @@ def convert_docx_to_pdf(docx_path, pdf_path):
     docx_path = os.path.abspath(docx_path)
     pdf_path = os.path.abspath(pdf_path)
 
-    # 方式一：在 Windows 平台直接調用 PowerShell Word COM 物件（最高保真度）
-    ps_cmd = f"""
-    $word = New-Object -ComObject Word.Application
-    $word.Visible = $false
-    try {{
-        $doc = $word.Documents.Open('{docx_path}')
-        $doc.SaveAs([ref]'{pdf_path}', [ref]17)
-        $doc.Close([ref]0)
-    }} finally {{
-        $word.Quit()
-    }}
-    """
-    res = subprocess.run(["powershell", "-NoProfile", "-Command", ps_cmd], capture_output=True, text=True)
-    if res.returncode == 0 and os.path.exists(pdf_path):
-        print(f"✅ 已成功轉換原生 PDF：{pdf_path}")
-        return True
-    else:
-        print(f"❌ Word COM 轉換失敗：{res.stderr}")
-        return False
+    # 1. Windows 平台：調用 PowerShell Word COM 物件
+    if sys.platform == "win32":
+        ps_cmd = f"""
+        $word = New-Object -ComObject Word.Application
+        $word.Visible = $false
+        try {{
+            $doc = $word.Documents.Open('{docx_path}')
+            $doc.SaveAs([ref]'{pdf_path}', [ref]17)
+            $doc.Close([ref]0)
+        }} finally {{
+            $word.Quit()
+        }}
+        """
+        try:
+            res = subprocess.run(["powershell", "-NoProfile", "-Command", ps_cmd], capture_output=True, text=True)
+            if res.returncode == 0 and os.path.exists(pdf_path):
+                print(f"✅ [Windows Word COM] 原生 PDF 轉換成功：{pdf_path}")
+                return True
+        except Exception as e:
+            print(f"⚠️ Windows Word COM 執行異常：{e}")
+
+    # 2. macOS 平台：調用 AppleScript 控制 Word for Mac
+    elif sys.platform == "darwin":
+        applescript = f'''
+        tell application "Microsoft Word"
+            set wasRunning to running
+            open POSIX file "{docx_path}"
+            set activeDoc to active document
+            save as activeDoc file format format PDF file name "{pdf_path}"
+            close activeDoc saving no
+            if not wasRunning then
+                quit
+            end if
+        end tell
+        '''
+        try:
+            res = subprocess.run(["osascript", "-e", applescript], capture_output=True, text=True)
+            if res.returncode == 0 and os.path.exists(pdf_path):
+                print(f"✅ [macOS Word] 原生 PDF 轉換成功：{pdf_path}")
+                return True
+        except Exception as e:
+            print(f"⚠️ macOS AppleScript Word 執行異常：{e}")
+
+    # 3. 跨平台備用：LibreOffice
+    soffice_bin = shutil.which("soffice") or shutil.which("libreoffice")
+    if not soffice_bin and sys.platform == "darwin":
+        mac_lo = "/Applications/LibreOffice.app/Contents/MacOS/soffice"
+        if os.path.exists(mac_lo):
+            soffice_bin = mac_lo
+
+    if soffice_bin:
+        out_dir = os.path.dirname(pdf_path)
+        try:
+            res = subprocess.run([soffice_bin, "--headless", "--convert-to", "pdf", docx_path, "--outdir", out_dir], capture_output=True, text=True)
+            if os.path.exists(pdf_path):
+                print(f"✅ [LibreOffice] PDF 轉換成功：{pdf_path}")
+                return True
+        except Exception as e:
+            print(f"⚠️ LibreOffice 轉換異常：{e}")
+
+    print(f"⚠️ 提示：未偵測到可用之本機 Word 或 LibreOffice 轉檔引擎。已產出 Word 檔（{docx_path}），請手動另存為 PDF。")
+    return False
 
 def main():
-    print("🚀 開始執行班費收費通知單套印程序...")
+    print("🚀 開始執行班費收費通知單套印程序（macOS / Windows 跨平台）...")
     class_name, students = load_roster()
     print(f"📋 班級：{class_name}，學生人數：{len(students)} 人")
 
-    # 1. 橫式 A4 一頁 6 張（主要首選）
+    # 1. 橫式 A4 一頁 6 張（主要首選，全班僅需 5 頁，含 2 張備用單）
     out_landscape_c = os.path.join(BASE_DIR, f"班費收費通知_{class_name}{len(students)}人_橫式一頁6張.docx")
     generate_landscape_docx(class_name, students, out_landscape_c)
 

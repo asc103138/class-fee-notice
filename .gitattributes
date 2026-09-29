@@ -1,0 +1,19 @@
+# Auto detect text files and perform LF normalization on checkin
+* text=auto eol=lf
+
+# Explicit text files
+*.py text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Binary files (preserve exact bytes across macOS and Windows)
+*.docx binary
+*.pdf binary
+*.xlsx binary
+*.jpg binary
+*.png binary
